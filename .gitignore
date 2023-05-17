@@ -1,5 +1,9 @@
 *.png
 *.pdf
+!AAA do not remove please back.png
+!AAA do not remove please cover.png
+!AAA do not remove please front.png
+!AAA do not remove please spine.png
 !AAA do not remove please.png
 !coordinatesTest.png
 
