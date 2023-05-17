@@ -5,8 +5,8 @@ import numpy as np
 
 from coordinates.getCoordinates import getCoordinates 
 
-scaleFactorX = 1.015
-scaleFactorY = 0.985
+scaleFactorX = 1.01
+scaleFactorY = 0.98
 
 def generatePrintWithBorder(templateImage, replacement, coordinates, outPath):
     """
