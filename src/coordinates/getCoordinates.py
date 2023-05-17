@@ -31,21 +31,18 @@ def generateCoordinates () -> dict:
     frontPath = join(dirname(abspath(__file__)), "templateFront.png")
     backPath = join(dirname(abspath(__file__)), "templateBack.png")
     spinePath = join(dirname(abspath(__file__)), "templateSpine.png")
-    logoPath = join(dirname(abspath(__file__)), "templateLogo.png")
 
-    if exists (coverPath) and exists (frontPath) and exists (backPath) and exists (spinePath) and exists (logoPath):
+    if exists (coverPath) and exists (frontPath) and exists (backPath) and exists (spinePath):
         templateCover = cv2.imread(coverPath) 
         templateFront = cv2.imread(frontPath)
         templateBack = cv2.imread(backPath)
         templateSpine = cv2.imread(spinePath)
-        templateLogo = cv2.imread(logoPath)
 
         return {
             "templateCover": findSubimageCoordinates(templateCover, templateCover),
             "templateFront": findSubimageCoordinates(templateCover, templateFront),
             "templateBack": findSubimageCoordinates(templateCover, templateBack),
-            "templateSpine": findSubimageCoordinates(templateCover, templateSpine),
-            "templateLogo": findSubimageCoordinates(templateCover, templateLogo),
+            "templateSpine": findSubimageCoordinates(templateCover, templateSpine)
         }
     else:
         raise Exception ("There is no template images to generate coordinates from, check the documentation to proceed.")
@@ -57,8 +54,7 @@ def getCoordinates () -> dict:
         "templateCover": template cover coordinates,
         "templateFront": template front coordinates,
         "templateBack": template back coordinates,
-        "templateSpine": template spine coordinates,
-        "templateLogo": template logo coordinates
+        "templateSpine": template spine coordinates
     }
     """
     coordinatesFilePath = (join(dirname(abspath(__file__)), "coordinates.pickle"))
@@ -73,14 +69,18 @@ def getCoordinates () -> dict:
 
     return coordinates
 
+def getTemplateCoverSizes (coordinates:dict) -> tuple:
+    coverCoordinates = coordinates ["templateCover"]
+            #width              # height
+    return (coverCoordinates[2], coverCoordinates[3])
+
 def testCoordinates ():
     """
     generates image from the prelevated or present coordinates with this color scheme
     colors = {
         "templateFront": "blue",
         "templateBack": "red",
-        "templateSpine": "green",
-        "templateLogo": "purple"
+        "templateSpine": "green"
     }
     """
     coordinates = getCoordinates ()
@@ -89,7 +89,6 @@ def testCoordinates ():
     template_front_x1, template_front_y1, template_front_x2, template_front_y2 = coordinates["templateFront"]
     template_back_x1, template_back_y1, template_back_x2, template_back_y2 = coordinates["templateBack"]
     template_spine_x1, template_spine_y1, template_spine_x2, template_spine_y2 = coordinates["templateSpine"]
-    template_logo_x1, template_logo_y1, template_logo_x2, template_logo_y2 = coordinates["templateLogo"]
 
     # Define the image size
     template_cover_width = template_cover_x2 - template_cover_x1  # Width of the template cover
@@ -105,15 +104,13 @@ def testCoordinates ():
     regions = {
         "templateFront": (template_front_x1, template_front_y1, template_front_x2, template_front_y2),
         "templateBack": (template_back_x1, template_back_y1, template_back_x2, template_back_y2),
-        "templateSpine": (template_spine_x1, template_spine_y1, template_spine_x2, template_spine_y2),
-        "templateLogo": (template_logo_x1, template_logo_y1, template_logo_x2, template_logo_y2)
+        "templateSpine": (template_spine_x1, template_spine_y1, template_spine_x2, template_spine_y2)
     }
 
     colors = {
         "templateFront": "blue",
         "templateBack": "red",
-        "templateSpine": "green",
-        "templateLogo": "purple"
+        "templateSpine": "green"
     }
 
     # Draw the regions with respective colors
@@ -124,5 +121,3 @@ def testCoordinates ():
 
     # Save the generated image
     image.save((join(dirname(abspath(__file__)), "coordinatesTest.png")))
-
-testCoordinates ()

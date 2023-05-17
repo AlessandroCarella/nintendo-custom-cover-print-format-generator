@@ -1,5 +1,7 @@
 *.png
 *.pdf
+!AAA do not remove please.png
+!coordinatesTest.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

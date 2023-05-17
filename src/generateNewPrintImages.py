@@ -1,9 +1,10 @@
-from os import listdir
+from os import listdir, makedirs
 from os.path import join, abspath, dirname, splitext, basename, exists
 import cv2
 import numpy as np
+from PIL import Image
 
-from coordinates.getCoordinates import getCoordinates 
+from coordinates.getCoordinates import getCoordinates, getTemplateCoverSizes
 
 def generatePrintWithBorder(templateImage, replacement, coordinates, outPath):
     """
@@ -53,7 +54,83 @@ def generatePrintWithBorder(templateImage, replacement, coordinates, outPath):
 
     cv2.imwrite(outPath, templateImage)
 
-pathCoverDir = join(dirname(abspath(__file__)), "../cover")
+def getResizedCover (coverPath, templateSizes):
+    originalImage = cv2.imread (coverPath)
+    return cv2.resize(originalImage, templateSizes)
+
+def getCoverSection (coverPath: str, sectionName: str):
+    templateCoordinates = getCoordinates ()
+    
+    newCoverResized = getResizedCover (coverPath, getTemplateCoverSizes (templateCoordinates))
+
+    # Crop the sub-image
+    x1,y1,x2,y2 = templateCoordinates["template" + sectionName.capitalize()]
+    subImage = newCoverResized[y1:y2, x1:x2]
+
+    cv2.imwrite(join(dirname(abspath(__file__)), "ciao.png"), subImage)
+
+
+def createFolderIfNotExists(folderPath):
+    if not exists (folderPath):
+        makedirs(folderPath)
+
+
+def changeSubImage (baseImage, subImage, coordinates):
+    x1, y1, x2, y2 = coordinates
+    
+    # Resize the replacement image to the new dimensions
+    subImageResized = cv2.resize(subImage, (x2 - x1, y2 - y1))
+    
+    baseImage [y1:y2, x1:x2] = subImageResized
+    return baseImage
+
+def generateNewCover (coordinates:dict, sizes:list, back, front, spine, outputPath):
+    """
+    params:
+    - coordinates is the dict with all the coordinates 
+    of the cover (not needed), back, front and spine
+    in the template image 
+    - sizes is a list of [width, height] of the template cover
+    (relative to the coordinates obviously) 
+    - back, front and spine are cv2.imread objects
+    of the back, front and spine images
+    """
+    # Create a white base image
+    baseImage = np.ones((sizes[1], sizes[0], 3), dtype=np.uint8) * 255
+
+    baseImage = changeSubImage (baseImage, back, coordinates["templateBack"])
+    baseImage = changeSubImage (baseImage, front, coordinates["templateFront"])
+    baseImage = changeSubImage (baseImage, spine, coordinates["templateSpine"])
+
+    cv2.imwrite (outputPath, baseImage)
+
+def generateAllCombinations ():
+    templateCoordinates = getCoordinates ()
+    templateCoverSize = getTemplateCoverSizes (templateCoordinates)
+
+    pathBacksDir = join(dirname(abspath(__file__)), "../source images/backs")
+    pathFrontsDir = join(dirname(abspath(__file__)), "../source images/fronts")
+    pathSpinesDir = join(dirname(abspath(__file__)), "../source images/spines")
+
+    dirPath = join(dirname(abspath(__file__)), "../generatedImages/allCombinations")
+    createFolderIfNotExists (dirPath)
+
+    for back in listdir(pathBacksDir) or [None]:
+        for front in listdir(pathFrontsDir) or [None]:
+            for spine in listdir(pathSpinesDir) or [None]:
+                fileName = "Back=" + splitext(back)[0] + ", Front=" + splitext(front)[0] + ", Spine=" + splitext(spine)[0] + " " + ".png"
+                generateNewCover (
+                    templateCoordinates,
+                    templateCoverSize,
+                    cv2.imread (join(pathBacksDir, back)),
+                    cv2.imread (join(pathFrontsDir, front)),
+                    cv2.imread (join(pathSpinesDir, spine)),
+                    join (dirPath, fileName)
+                )
+
+generateAllCombinations ()
+
+"""
 pathOutputDir = join(dirname(abspath(__file__)), "../outputCoversForPrint")
 
 coordinates = getCoordinates()
@@ -62,11 +139,6 @@ templatePath = join(dirname(abspath(__file__)), "coordinates/template.png")
 templatePrint = cv2.imread(templatePath)
 
 pathOutputDir = join(dirname(abspath(__file__)), "../outputCoversForPrint")
-
-for image in listdir(pathCoverDir):
-    imageObj = cv2.imread(join (pathCoverDir, image))
-    outPath = join (pathOutputDir, image)
-    generatePrintWithBorder(coordinates["templatePrint"], imageObj, coordinates["templateCover"], outPath)
 
 allPaths = []
 
@@ -82,5 +154,4 @@ for image in listdir(newCoversDir):
             allPaths.append(outPath)
             generatePrintWithBorder(imageObj, spineObj, coordinates["templateSpine"], outPath)
 
-print (scaleFactorX)
-print (scaleFactorY)
+"""
