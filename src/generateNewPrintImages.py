@@ -1,5 +1,5 @@
 from os import listdir, makedirs
-from os.path import join, abspath, dirname, splitext, basename, exists
+from os.path import join, abspath, dirname, splitext, basename, exists, isdir
 import cv2
 import numpy as np
 from PIL import Image
@@ -58,22 +58,60 @@ def getResizedCover (coverPath, templateSizes):
     originalImage = cv2.imread (coverPath)
     return cv2.resize(originalImage, templateSizes)
 
-def getCoverSection (coverPath: str, sectionName: str):
-    templateCoordinates = getCoordinates ()
-    
+
+def createFolderIfNotExists(folderPath):
+    if not exists (folderPath):
+        makedirs(folderPath)
+
+
+def getCoverSection (coverPath: str, sectionName: str, templateCoordinates: dict):
     newCoverResized = getResizedCover (coverPath, getTemplateCoverSizes (templateCoordinates))
 
     # Crop the sub-image
     x1,y1,x2,y2 = templateCoordinates["template" + sectionName.capitalize()]
     subImage = newCoverResized[y1:y2, x1:x2]
 
-    cv2.imwrite(join(dirname(abspath(__file__)), "ciao.png"), subImage)
+    return subImage
 
+def splitCover (coverPath:str, templateCoordinates:dict):
+    """
+    takes in input the path of the cover to split in
+    - back
+    - front
+    #- spine
 
-def createFolderIfNotExists(folderPath):
-    if not exists (folderPath):
-        makedirs(folderPath)
+    returns cv2.imread objects
+    back, front#, spine
 
+    #*spine is useless most of the time since the intended 
+    use of the cover folder is to put the original covers there,
+    if you have a cover with a spine you want to use in other covers
+    use the defined method #TODO
+    """
+    back = getCoverSection (coverPath, "Back", templateCoordinates)
+    front = getCoverSection (coverPath, "Front", templateCoordinates)
+    #spine = getCoverSection (coverPath, "Spine")
+
+    return back, front#, spine
+
+def getCoverSplit (templateCoordinates:dict) -> tuple[list, list]:
+    """
+    returns 2 lists
+    a list with all the backs extracted from the covers
+    as cv2.imread objects
+    and
+    a list with all the fronts extracted from the covers
+    as cv2.imread objects
+    """
+    pathCoversDir = join(dirname(abspath(__file__)), "../source images/backs")
+    backs = []
+    fronts = []
+    for cover in listdir(pathCoversDir):
+        back, front = splitCover (cover, templateCoordinates)
+        backs.append(back)
+        fronts.append(front)
+
+    return backs, fronts
 
 def changeSubImage (baseImage, subImage, coordinates):
     x1, y1, x2, y2 = coordinates
@@ -82,6 +120,7 @@ def changeSubImage (baseImage, subImage, coordinates):
     subImageResized = cv2.resize(subImage, (x2 - x1, y2 - y1))
     
     baseImage [y1:y2, x1:x2] = subImageResized
+    
     return baseImage
 
 def generateNewCover (coordinates:dict, sizes:list, back, front, spine, outputPath):
@@ -104,31 +143,55 @@ def generateNewCover (coordinates:dict, sizes:list, back, front, spine, outputPa
 
     cv2.imwrite (outputPath, baseImage)
 
-def generateAllCombinations ():
-    templateCoordinates = getCoordinates ()
-    templateCoverSize = getTemplateCoverSizes (templateCoordinates)
+def getCv2ImReadObjFromDirPath (path:str):
+    output = []
 
+    if isdir (path):
+        output.append (cv2.imread (path))
+
+    return output
+
+def getBacksFrontsAndSpinesFromFolders () -> tuple [list, list, list]:
     pathBacksDir = join(dirname(abspath(__file__)), "../source images/backs")
     pathFrontsDir = join(dirname(abspath(__file__)), "../source images/fronts")
     pathSpinesDir = join(dirname(abspath(__file__)), "../source images/spines")
 
+    return (
+        getCv2ImReadObjFromDirPath (pathBacksDir),
+        getCv2ImReadObjFromDirPath (pathFrontsDir),
+        getCv2ImReadObjFromDirPath (pathSpinesDir)
+    )
+
+def generateAllCombinations (withCoverSplit:bool):
+    templateCoordinates = getCoordinates ()
+    templateCoverSize = getTemplateCoverSizes (templateCoordinates)
+
+    backs, fronts, spines = getBacksFrontsAndSpinesFromFolders ()
+
+    if withCoverSplit:
+        additionalBacks, additionalFronts = getCoverSplit (templateCoordinates)
+        backs.extend (additionalBacks)
+        fronts.extend (additionalFronts)
+
     dirPath = join(dirname(abspath(__file__)), "../generatedImages/allCombinations")
     createFolderIfNotExists (dirPath)
 
-    for back in listdir(pathBacksDir) or [None]:
-        for front in listdir(pathFrontsDir) or [None]:
-            for spine in listdir(pathSpinesDir) or [None]:
-                fileName = "Back=" + splitext(back)[0] + ", Front=" + splitext(front)[0] + ", Spine=" + splitext(spine)[0] + " " + ".png"
+    imagesGeneratedCounter = 0
+    for back in backs or [None]: #[None] is because
+        for front in fronts or [None]: #there may be no images
+            for spine in spines or [None]: #in the relative folders
+                fileName = str(imagesGeneratedCounter) + ".png"
                 generateNewCover (
                     templateCoordinates,
                     templateCoverSize,
-                    cv2.imread (join(pathBacksDir, back)),
-                    cv2.imread (join(pathFrontsDir, front)),
-                    cv2.imread (join(pathSpinesDir, spine)),
+                    back,
+                    front,
+                    spine,
                     join (dirPath, fileName)
                 )
+                imagesGeneratedCounter += 1
 
-generateAllCombinations ()
+generateAllCombinations (False)
 
 """
 pathOutputDir = join(dirname(abspath(__file__)), "../outputCoversForPrint")
