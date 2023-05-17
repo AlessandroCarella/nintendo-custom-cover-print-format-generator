@@ -5,9 +5,6 @@ import numpy as np
 
 from coordinates.getCoordinates import getCoordinates 
 
-scaleFactorX = 1.01
-scaleFactorY = 0.98
-
 def generatePrintWithBorder(templateImage, replacement, coordinates, outPath):
     """
     saves a png file of the cover in the replacement parameter
@@ -34,8 +31,8 @@ def generatePrintWithBorder(templateImage, replacement, coordinates, outPath):
     height = y2 - y1
 
     # Calculate the new width based on the scale factor
-    newWidth = int(width * scaleFactorX)
-    newHeight = int (height * scaleFactorY)
+    newWidth = int(width)
+    newHeight = int (height)
 
     # Resize the replacement image to the new dimensions
     replacementResized = cv2.resize(replacement, (newWidth, newHeight))

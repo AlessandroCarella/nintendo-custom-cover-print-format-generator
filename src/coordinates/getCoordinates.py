@@ -1,17 +1,9 @@
+from PIL import Image, ImageDraw
 from os import listdir
 from os.path import join, abspath, dirname, splitext, basename, exists
 import cv2
 import numpy as np
 import pickle
-
-def createBlankImageLike(image):
-    # Get the size of the image
-    height, width, _ = image.shape
-
-    # Create a blank image with the same size
-    blankImage = np.full((height, width, 3), (255, 255, 255), dtype=np.uint8)
-
-    return blankImage
 
 def findSubimageCoordinates(image, subimage) -> list:
     # Convert the images to grayscale
@@ -39,42 +31,34 @@ def generateCoordinates () -> dict:
     frontPath = join(dirname(abspath(__file__)), "templateFront.png")
     backPath = join(dirname(abspath(__file__)), "templateBack.png")
     spinePath = join(dirname(abspath(__file__)), "templateSpine.png")
+    logoPath = join(dirname(abspath(__file__)), "templateLogo.png")
 
-    if exists (templatePath) and exists (coverPath) and exists (frontPath) and exists (backPath) and exists (spinePath):
-        # Open the template image
-        templatePrint = cv2.imread(templatePath)
-
+    if exists (coverPath) and exists (frontPath) and exists (backPath) and exists (spinePath) and exists (logoPath):
         templateCover = cv2.imread(coverPath) 
-        coverCoordinates = findSubimageCoordinates(templatePrint, templateCover)
-
         templateFront = cv2.imread(frontPath)
-        frontCoordinates = findSubimageCoordinates(templatePrint, templateFront)
-
         templateBack = cv2.imread(backPath)
-        backCoordinates = findSubimageCoordinates(templatePrint, templateBack)
-
         templateSpine = cv2.imread(spinePath)
-        spineCoordinates = findSubimageCoordinates(templatePrint, templateSpine)
+        templateLogo = cv2.imread(logoPath)
 
         return {
-            "templatePrint": createBlankImageLike(templatePrint),
-            "templateCover": coverCoordinates,
-            "templateFront": frontCoordinates,
-            "templateBack": backCoordinates,
-            "templateSpine": spineCoordinates,
+            "templateCover": findSubimageCoordinates(templateCover, templateCover),
+            "templateFront": findSubimageCoordinates(templateCover, templateFront),
+            "templateBack": findSubimageCoordinates(templateCover, templateBack),
+            "templateSpine": findSubimageCoordinates(templateCover, templateSpine),
+            "templateLogo": findSubimageCoordinates(templateCover, templateLogo),
         }
     else:
         raise Exception ("There is no template images to generate coordinates from, check the documentation to proceed.")
-    
+
 def getCoordinates () -> dict:
     """
     return dict object structured as such:
     {
-        "templatePrint": templatePrintBlank,
-        "templateCover": templateCover,
-        "templateFront": templateFront,
-        "templateBack": templateBack,
-        "templateSpine": templateSpine,
+        "templateCover": template cover coordinates,
+        "templateFront": template front coordinates,
+        "templateBack": template back coordinates,
+        "templateSpine": template spine coordinates,
+        "templateLogo": template logo coordinates
     }
     """
     coordinatesFilePath = (join(dirname(abspath(__file__)), "coordinates.pickle"))
@@ -84,7 +68,61 @@ def getCoordinates () -> dict:
             coordinates = pickle.load(f)
     else:
         coordinates = generateCoordinates()    
-        #with open (coordinatesFilePath, "wb") as f:
-        #    pickle.dump(coordinates, f)
+        with open (coordinatesFilePath, "wb") as f:
+            pickle.dump(coordinates, f)
 
     return coordinates
+
+def testCoordinates ():
+    """
+    generates image from the prelevated or present coordinates with this color scheme
+    colors = {
+        "templateFront": "blue",
+        "templateBack": "red",
+        "templateSpine": "green",
+        "templateLogo": "purple"
+    }
+    """
+    coordinates = getCoordinates ()
+
+    template_cover_x1, template_cover_y1, template_cover_x2, template_cover_y2 = coordinates["templateCover"]
+    template_front_x1, template_front_y1, template_front_x2, template_front_y2 = coordinates["templateFront"]
+    template_back_x1, template_back_y1, template_back_x2, template_back_y2 = coordinates["templateBack"]
+    template_spine_x1, template_spine_y1, template_spine_x2, template_spine_y2 = coordinates["templateSpine"]
+    template_logo_x1, template_logo_y1, template_logo_x2, template_logo_y2 = coordinates["templateLogo"]
+
+    # Define the image size
+    template_cover_width = template_cover_x2 - template_cover_x1  # Width of the template cover
+    template_cover_height = template_cover_y2 - template_cover_y1  # Height of the template cover
+
+    # Create a new blank image
+    image = Image.new('RGB', (template_cover_width, template_cover_height))
+
+    # Create a drawing object
+    draw = ImageDraw.Draw(image)
+
+    # Define the regions and colors
+    regions = {
+        "templateFront": (template_front_x1, template_front_y1, template_front_x2, template_front_y2),
+        "templateBack": (template_back_x1, template_back_y1, template_back_x2, template_back_y2),
+        "templateSpine": (template_spine_x1, template_spine_y1, template_spine_x2, template_spine_y2),
+        "templateLogo": (template_logo_x1, template_logo_y1, template_logo_x2, template_logo_y2)
+    }
+
+    colors = {
+        "templateFront": "blue",
+        "templateBack": "red",
+        "templateSpine": "green",
+        "templateLogo": "purple"
+    }
+
+    # Draw the regions with respective colors
+    for region, coords in regions.items():
+        x1, y1, x2, y2 = coords
+        color = colors[region]
+        draw.rectangle([(x1, y1), (x2, y2)], fill=color)
+
+    # Save the generated image
+    image.save((join(dirname(abspath(__file__)), "coordinatesTest.png")))
+
+testCoordinates ()
